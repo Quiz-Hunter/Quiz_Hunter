@@ -11,9 +11,6 @@ def validate_pdf(file_path: str) -> bool:
     if not os.path.exists(file_path):
         print(f"Error: File not found at path: {file_path}")
         return False
-    if not file_path.lower().endswith('.pdf'):
-        print("Error: File is not a PDF")
-        return False
     return True
 
 def extract_text_from_pdf(file_path: str, max_chars: int = 100000) -> Optional[str]:
@@ -65,8 +62,18 @@ def select_all_pdf_name(dir):
     dir_path = Path(dir)
 
     pdf_files = dir_path.glob('*.pdf')
+    pdf_list = []
     for pdf_file in pdf_files:
-        print(pdf_file)
+        pdf_list.append(pdf_file)
+    return pdf_list
 
-select_all_pdf_name('./pdf_data/')
+if __name__ == '__main__':
+
+    pdf_file_list = select_all_pdf_name('./pdf_data/')
+
+    for file_name in pdf_file_list:
+        if validate_pdf(file_name):
+            text = extract_text_from_pdf(file_name)
+            print(text)
+
 

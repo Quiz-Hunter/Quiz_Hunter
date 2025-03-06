@@ -61,33 +61,4 @@ def extract_text_from_pdf(file_path: str, max_chars: int = 100000) -> Optional[s
     except Exception as e:
         print(f"An unexpected error occurred: {str(e)}")
         return None
-    
-# Extract metadata first
-print("Extracting metadata...")
-metadata = get_pdf_metadata(pdf_path)
-if metadata:
-    print("\nPDF Metadata:")
-    print(f"Number of pages: {metadata['num_pages']}")
-    print("Document info:")
-    for key, value in metadata['metadata'].items():
-        print(f"{key}: {value}")
-
-# Extract text
-print("\nExtracting text...")
-extracted_text = extract_text_from_pdf(pdf_path)
-
-# Display first 500 characters of extracted text as preview
-if extracted_text:
-    print("\nPreview of extracted text (first 500 characters):")
-    print("-" * 50)
-    print(extracted_text[:500])
-    print("-" * 50)
-    print(f"\nTotal characters extracted: {len(extracted_text)}")
-
-# Optional: Save the extracted text to a file
-if extracted_text:
-    output_file = 'extracted_text.txt'
-    with open(output_file, 'w', encoding='utf-8') as f:
-        f.write(extracted_text)
-    print(f"\nExtracted text has been saved to {output_file}")
-
+  

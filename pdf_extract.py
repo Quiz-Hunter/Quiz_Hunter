@@ -2,9 +2,8 @@ import PyPDF2
 from typing import Optional
 import os
 import torch
-from accelerate import Accelerator
 from transformers import AutoModelForCausalLM, AutoTokenizer
-
+from pathlib import Path
 from tqdm.notebook import tqdm
 import warnings
 
@@ -62,3 +61,12 @@ def extract_text_from_pdf(file_path: str, max_chars: int = 100000) -> Optional[s
         print(f"An unexpected error occurred: {str(e)}")
         return None
   
+def select_all_pdf_name(dir):
+    dir_path = Path(dir)
+
+    pdf_files = dir_path.glob('*.pdf')
+    for pdf_file in pdf_files:
+        print(pdf_file)
+
+select_all_pdf_name('./pdf_data/')
+

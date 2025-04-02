@@ -1,0 +1,1 @@
+# writing the retriever model like: bm25 hsnw bert+tfidf and hybrid model

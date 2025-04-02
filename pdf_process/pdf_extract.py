@@ -75,5 +75,8 @@ if __name__ == '__main__':
         if validate_pdf(file_name):
             text = extract_text_from_pdf(file_name)
             print(text)
+            if 'a' not in str(file_name):
+                print(text)
+                break
 
 

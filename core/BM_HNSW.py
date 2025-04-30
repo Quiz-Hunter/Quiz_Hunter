@@ -1,94 +1,66 @@
-from elasticsearch import Elasticsearch
-from sentence_transformers import SentenceTransformer
-import pandas as pd
-from tqdm import tqdm
 import os
+import pandas as pd
+import numpy as np
+from tqdm import tqdm
+import faiss
+from sentence_transformers import SentenceTransformer
+from rank_bm25 import BM25Okapi
 
 
 class BM25HNSWRetriever:
-    def __init__(self, es_url, ca_cert_path, index_name="bm25_hnsw_index"):
-        self.index_name = index_name
-        self.model = SentenceTransformer('distiluse-base-multilingual-cased-v1')
-        self.es = Elasticsearch(es_url, ca_certs=ca_cert_path)
+    def __init__(self, data_path, model_name="distiluse-base-multilingual-cased-v1"):
+        self.data_path = data_path
+        self.model = SentenceTransformer(model_name)
+        self.data = None
+        self.embeddings = None
+        self.bm25 = None
+        self.faiss_index = None
 
-    def create_index_and_ingest(self, data_path):
-        if self.es.indices.exists(index=self.index_name):
-            print(f"Index '{self.index_name}' already exists.")
-            return
-
-        if not os.path.exists(data_path):
-            raise FileNotFoundError(f"CSV file not found: {data_path}")
-
-        df = pd.read_csv(data_path)
+    def load_and_prepare(self):
+        df = pd.read_csv(self.data_path)
         if not {'id', 'content', 'date'}.issubset(df.columns):
-            raise ValueError("CSV must have 'id', 'content', and 'date' columns.")
+            raise ValueError("CSV 檔案必須包含 'id', 'content', 'date' 欄位")
 
-        embeddings = self.model.encode(df['content'].tolist(), convert_to_tensor=True, normalize_embeddings=False, show_progress_bar=True)
-        data = [
-            {
-                'id': row['id'],
-                'content': row['content'],
-                'date': row['date'],
-                'embeddings': embedding.tolist()
-            }
-            for row, embedding in zip(df.to_dict('records'), embeddings)
-        ]
+        self.data = df
+        print("Encoding embeddings with SentenceTransformer...")
+        self.embeddings = self.model.encode(df['content'].tolist(), show_progress_bar=True, normalize_embeddings=True)
+        print("Building BM25 index...")
+        tokenized_corpus = [doc.split(" ") for doc in df['content']]
+        self.bm25 = BM25Okapi(tokenized_corpus)
+        print("Building FAISS HNSW index...")
+        dim = self.embeddings.shape[1]
+        self.faiss_index = faiss.IndexHNSWFlat(dim, 32)  # HNSW with 32 neighbors
+        self.faiss_index.hnsw.efConstruction = 100
+        self.faiss_index.add(self.embeddings)
 
-        settings = {
-            "settings": {
-                "number_of_shards": 1
-            },
-            "mappings": {
-                "properties": {
-                    "content": {
-                        "type": "text"
-                    },
-                    "embeddings": {
-                        "type": "dense_vector",
-                        "dims": 512,
-                        "index": True,
-                        "similarity": "cosine",
-                        "index_options": {
-                            "type": "hnsw",
-                            "m": 32,
-                            "ef_construction": 100
-                        }
-                    },
-                    "date": {
-                        "type": "date",
-                        "format": "yyyy-MM-dd HH:mm:ss.SSS"
-                    }
-                }
-            }
-        }
+    def search(self, query, top_k=5, alpha=0.5):
+        """
+        alpha: 0~1, 控制向量分數與 BM25 的混合比例
+        """
+        if self.faiss_index is None or self.bm25 is None:
+            raise RuntimeError("Index not built yet. Please call `load_and_prepare()` first.")
 
-        self.es.indices.create(index=self.index_name, body=settings)
+        query_embedding = self.model.encode([query], normalize_embeddings=True)
+        faiss_scores, faiss_ids = self.faiss_index.search(query_embedding, top_k * 10)
+        faiss_scores = faiss_scores[0]
+        faiss_ids = faiss_ids[0]
+        bm25_scores = self.bm25.get_scores(query.split(" "))
+        bm25_scores = np.array(bm25_scores)
+        hybrid_results = []
+        for idx, score in zip(faiss_ids, faiss_scores):
+            bm25_score = bm25_scores[idx]
+            hybrid_score = alpha * score + (1 - alpha) * bm25_score
+            hybrid_results.append((idx, hybrid_score))
 
-        for doc in tqdm(data, desc="Indexing data"):
-            self.es.index(index=self.index_name, id=doc['id'], document=doc, refresh=False)
-        self.es.indices.refresh(index=self.index_name)
+        hybrid_results = sorted(hybrid_results, key=lambda x: x[1], reverse=True)[:top_k]
+        results = []
+        for idx, score in hybrid_results:
+            row = self.data.iloc[idx]
+            results.append({
+                "id": row["id"],
+                "content": row["content"],
+                "date": row["date"],
+                "score": score
+            })
 
-    def search(self, query_text, top_k=5):
-        query_vector = self.model.encode(query_text, convert_to_tensor=True, normalize_embeddings=False).tolist()
-
-        es_query = {
-            "knn": {
-                "field": "embeddings",
-                "query_vector": query_vector,
-                "k": top_k,
-                "num_candidates": top_k * 10,
-                "boost": 0.5
-            },
-            "query": {
-                "match": {
-                    "content": {
-                        "query": query_text,
-                        "boost": 0.5
-                    }
-                }
-            },
-            "size": top_k
-        }
-
-        response = self.es.search(index=self.index_name, body=es_query)
-        return response['hits']['hits']
+        return results

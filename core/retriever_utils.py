@@ -1,4 +1,4 @@
-import BM_HNSW as bh
+import bm_hnsw as bh
 
 def bm25_hnsw_retriever():
     retriever = bh.BM25HNSWRetriever(

@@ -17,18 +17,29 @@ class BM25HNSWRetriever:
         self.faiss_index = None
 
     def load_and_prepare(self):
-        df = pd.read_csv(self.data_path)
-        if not {'id', 'content', 'date'}.issubset(df.columns):
-            raise ValueError("CSV 檔案必須包含 'id', 'content', 'date' 欄位")
+        df = pd.read_json(self.data_path, lines=True)  # 改用 JSONL 格式，或讀 json
+
+        if not {'id', 'stem', 'options'}.issubset(df.columns):
+            raise ValueError("JSON 檔案必須包含 'id', 'stem', 'options' 欄位")
+
+        # 合併題幹與選項為一個 content 欄位
+        def build_content(row):
+            opts = row["options"]
+            opts_str = " ".join([f"{key}:{val}" for key, val in opts.items()])
+            return f"{row['stem']} 選項：{opts_str}"
+
+        df["content"] = df.apply(build_content, axis=1)
+        df["date"] = "unknown"  # 沒有日期就補上 placeholder
 
         self.data = df
+
         print("Encoding embeddings with SentenceTransformer...")
         self.embeddings = self.model.encode(
             df['content'].tolist(),
             show_progress_bar=True,
-            normalize_embeddings=True  # 保持內積等於 cosine similarity
+            normalize_embeddings=True
         )
-        
+
         print("Building BM25 index...")
         tokenized_corpus = [doc.split(" ") for doc in df['content']]
         self.bm25 = BM25Okapi(tokenized_corpus)
@@ -38,6 +49,7 @@ class BM25HNSWRetriever:
         self.faiss_index = faiss.IndexHNSWFlat(dim, 32, faiss.METRIC_INNER_PRODUCT)
         self.faiss_index.hnsw.efConstruction = 100
         self.faiss_index.add(self.embeddings)
+
 
     def search(self, query, top_k=5, alpha=0.5):
         """

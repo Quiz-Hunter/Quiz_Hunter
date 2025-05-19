@@ -1,14 +1,11 @@
-import crawler.hackmd_crawler as HackmdCrawler
 import streamlit as st
-import model.rag_model as Rag
-import model.summarize_model as Summarize_RAG
+import core.retriever_utils as retriever
 import torch
 
 @st.cache_resource
 def load_retriever_system():
-    llm_rag = Rag.RagSystem('./doc')
-    llm_rag.build_index()
-    return llm_rag
+    bm25_retriever = retriever.bm25_hnsw_retriever("test.csv")
+    return bm25_retriever
 
 def interface():
     st.set_page_config(page_title="QuizHunter", layout="wide")
@@ -18,13 +15,16 @@ def interface():
 
     if query:
         with st.spinner("正在分析與推薦中，請稍候..."):
-            llm_rag = load_retriever_system()
+            llm_retriever = load_retriever_system()
+            llm_retriever.load_and_prepare()
             # llm_summarize.build_index()
-            response , content =llm_rag.answer(query)
+            results = retriever.search(query, top_k=3, alpha=0.5)
+            for r in results:
+                print(f"{r['id']} | {r['date']} | {r['score']:.2f} | {r['content']}")
             # response =llm_summarize.summarize(query)
             st.success("✅ 回答完成")
             # st.write(content)
-            st.write(response)
+            st.write(results[0]['content'])
 
 def main():
     # hack_md_crawler = HackmdCrawler.HackmdCrawler('./config.env')

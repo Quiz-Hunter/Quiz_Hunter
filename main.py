@@ -1,4 +1,4 @@
-from SimilaritySearcher import SimilaritySearcher
+from core.SimilaritySearcher import SimilaritySearcher
 import glob
 
 def input_question():

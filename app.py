@@ -4,10 +4,11 @@ os.environ["STREAMLIT_WATCHER_TYPE"] = "none"  # 關閉熱重載，避免 torch.
 import streamlit as st
 import core.RetrieverUtils as retriever
 import torch
+import core.Score as rank_score
 
 @st.cache_resource
 def load_retriever_system():
-    bm25_retriever = retriever.bm25_hnsw_retriever("test.csv")
+    bm25_retriever = retriever.bm25_hnsw_retriever()
     return bm25_retriever
 
 def interface():
@@ -20,11 +21,26 @@ def interface():
         with st.spinner("正在分析與推薦中，請稍候..."):
             llm_retriever = load_retriever_system()
             llm_retriever.load_and_prepare()
-            results = retriever.search(query, top_k=3, alpha=0.5)
+
+            results = llm_retriever.search(query, top_k=3, alpha=0.5)
+
             for r in results:
-                print(f"{r['id']} | {r['date']} | {r['score']:.2f} | {r['content']}")
-            st.success("✅ 回答完成")
+                print(f"{r['id']} | {r['year']}年 {r['subject']} | {r['score']:.2f} 分")
+                print(f"→ {r['content']}\n")
+
+            
             st.write(results[0]['content'])
+            scorer = rank_score.DifficultyScorer(results[0])
+            stars, gold, answers, correctness, auto, gem = scorer.score()
+            print(f"\U0001f511 正解（Gemini）：{gold}")
+            print(f"\U0001f9e0 難度（自動答題評估）：{auto} 星")
+            print(f"\U0001f4ca 難度（Gemini語意評估）：{gem} 星")
+            print(f"⭐️ 綜合難度評等：{stars} 星")
+            stars = '⭐️' * stars
+            st.markdown(f"**預估難度：** {stars}")
+            st.write(f"Answer: {gold}")
+            st.success("✅ 回答完成")
+
 
     # 🔽 統一選擇年份
     st.markdown("---")

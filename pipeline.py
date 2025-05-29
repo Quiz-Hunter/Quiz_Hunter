@@ -1,8 +1,8 @@
 import os, json
 from pathlib import Path
-from QuestionExtractor import QuestionExtractor
-from EmbeddingGenerator import EmbeddingGenerator
-from SimilaritySearcher import SimilaritySearcher
+from core.QuestionExtractor import QuestionExtractor
+from core.EmbeddingGenerator import EmbeddingGenerator
+from core.SimilaritySearcher import SimilaritySearcher
 
 def run_pipeline(pdf_folder="pdf_data", output_folder="output_data", year_start=106, year_end=113):
     Path(output_folder).mkdir(parents=True, exist_ok=True)

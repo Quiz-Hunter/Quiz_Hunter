@@ -2,7 +2,7 @@ import os
 os.environ["STREAMLIT_WATCHER_TYPE"] = "none"  # 關閉熱重載，避免 torch._classes bug
 
 import streamlit as st
-import core.retriever_utils as retriever
+import core.RetrieverUtils as retriever
 import torch
 
 @st.cache_resource

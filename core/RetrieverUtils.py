@@ -2,6 +2,7 @@ import core.BmHnsw as bh
 
 def bm25_hnsw_retriever():
     retriever = bh.BM25HNSWRetriever("C:\\Users\\0524e\\OneDrive\\文件\\GitHub\\Quiz_Hunter\\Quiz_json\\all.json")  # ← JSON 題庫
+    retriever.load_and_prepare()
     return retriever
 
 

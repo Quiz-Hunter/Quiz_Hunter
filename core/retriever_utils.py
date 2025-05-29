@@ -1,4 +1,4 @@
-import bm_hnsw as bh
+import core.bmhnsw as bh
 
 def bm25_hnsw_retriever():
     retriever = bh.BM25HNSWRetriever(

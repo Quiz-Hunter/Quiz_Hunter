@@ -86,7 +86,7 @@ if __name__ == "__main__":
     retriever = BM25HNSWRetriever("C:\\Users\\0524e\\OneDrive\\文件\\GitHub\\Quiz_Hunter\\Quiz_json\\all.json")  # ← JSON 題庫
     retriever.load_and_prepare()
 
-    query = "銅線與硝酸反應會產生氣體與硝酸銅，請問需要多少硝酸體積？"
+    query = "下列哪一種物質與適當的催化劑共熱，可得到氧氣？"
     results = retriever.search(query, top_k=3, alpha=0.5)
 
     for r in results:

@@ -50,7 +50,7 @@ class BM25HNSWRetriever:
         self.faiss_index.hnsw.efConstruction = 100
         self.faiss_index.add(self.embeddings)
 
-    def search(self, query, top_k=5, alpha=0.5):
+    def search(self, query, top_k=5, alpha=0.3):
         if self.faiss_index is None or self.bm25 is None:
             raise RuntimeError("Please run load_and_prepare() first.")
 

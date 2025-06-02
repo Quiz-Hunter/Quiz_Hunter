@@ -2,6 +2,7 @@ import json
 import jieba
 from collections import Counter
 import matplotlib.pyplot as plt
+import matplotlib.font_manager as fm
 from wordcloud import WordCloud
 from keybert import KeyBERT
 from sklearn.feature_extraction.text import TfidfVectorizer
@@ -43,7 +44,7 @@ class QuizAnalyzer:
             joined = ' '.join(tokens)
             kws = self.kb.extract_keywords(
                 joined,
-                keyphrase_ngram_range=(1, 2),
+                keyphrase_ngram_range=(1, 1),
                 stop_words=None,
                 top_n=top_k
             )
@@ -52,7 +53,7 @@ class QuizAnalyzer:
 
     def tag_json_and_save(self,
                           input_json: str,
-                          output_json: str,
+                          output_path: str,
                           top_k: int = 5) -> None:
         questions, raw = self.load_questions_from_json(input_json)
         tags = self.extract_tags_keybert(questions, top_k=top_k)
@@ -60,28 +61,42 @@ class QuizAnalyzer:
         for item, tg in zip(raw, tags):
             item['tags'] = tg
             all_tags_flat.extend(tg)
+        if output_path:
+            output_json = output_path + '.json'
         with open(output_json, 'w', encoding='utf-8') as f:
             json.dump(raw, f, ensure_ascii=False, indent=2)
         print(f"[INFO] 已將標籤寫入 {output_json}")
 
         # 顯示 top 10 tag 長條圖
-        self.plot_top_tags(all_tags_flat)
+        self.plot_top_tags(tags=all_tags_flat, output_path=output_path)
 
-    def plot_top_tags(self, tags: list[str], top_n: int = 10):
+    def plot_top_tags(self,
+                      tags: list[str],
+                      top_n: int = 10,
+                      output_path: str = None):
         counter = Counter(tags)
         common = counter.most_common(top_n)
         tags, counts = zip(*common)
-        plt.figure(figsize=(10, 6))
-        plt.bar(tags, counts, color='skyblue')
-        plt.xticks(rotation=45, ha='right')
-        plt.title(f'Top {top_n} Tags')
-        plt.ylabel('Count')
-        plt.tight_layout()
-        plt.show()
+        font_path = r'C:\Windows\Fonts\msjh.ttc'
+        my_font = fm.FontProperties(fname=font_path)
+        if output_path:
+            output_path += '.png'
+            plt.figure(figsize=(10, 6))
+            plt.bar(tags, counts, color='skyblue')
+            plt.xticks(rotation=45, ha='right', fontproperties=my_font)
+            plt.title(f'Top {top_n} Tags', fontproperties=my_font)
+            plt.ylabel('Count')
+            plt.tight_layout()
+            plt.savefig(output_path, dpi=300, bbox_inches='tight')
+            print(f"[INFO] 標籤長條圖已儲存至 {output_path}")
+            plt.show()
+        else:
+            plt.show()
+        plt.close()
 
     def generate_wordcloud_tfidf(self,
                                  texts: list[str],
-                                 font_path: str = 'NotoSansTC-Regular.otf',
+                                 font_path: str,
                                  top_k: int = None,
                                  output_path: str = None) -> None:
         corpus = [' '.join(self.tokenize(t)) for t in texts]
@@ -101,6 +116,11 @@ class QuizAnalyzer:
         wc.generate_from_frequencies(tfidf_dict)
 
         if output_path:
+            plt.figure(figsize=(10, 8))
+            plt.imshow(wc, interpolation='bilinear')
+            plt.axis('off')
+            plt.tight_layout()
+            plt.show()
             wc.to_file(output_path)
             print(f"[INFO] 詞雲已儲存至 {output_path}")
         else:
@@ -112,7 +132,7 @@ class QuizAnalyzer:
 
     def process_and_visualize(self,
                               json_path: str,
-                              font_path: str = 'NotoSansTC-Regular.otf',
+                              font_path: str,
                               top_k: int = None,
                               output_path: str = None) -> None:
         texts, _ = self.load_questions_from_json(json_path)
@@ -126,15 +146,23 @@ class QuizAnalyzer:
 
 if __name__ == '__main__':
     qa = QuizAnalyzer(stopwords_path='stopwords.txt')
+    years = ['106', '107', '108', '109', '110', '111', '113']
+    #year = input('Please type the year of test:')
+    for i in range(0,7):
+        year = years[i]
+        input_path = year + '.json'
+        tags_output = year + 'tags'
+        clouds_output = year + '.png'
 
-    qa.tag_json_and_save(
-        input_json='questions.json',
-        output_json='questions_with_tags.json',
-        top_k=3
-    )
+        qa.tag_json_and_save(
+            input_json=input_path,
+            output_path=tags_output,
+            top_k=3
+        )
 
-    qa.process_and_visualize(
-        json_path='questions.json',
-        font_path='NotoSansTC-Regular.otf',
-        top_k=100
-    )
+        qa.process_and_visualize(
+            json_path=input_path,
+            font_path=r'C:\Windows\Fonts\msjh.ttc',
+            top_k=100,
+            output_path=clouds_output
+        )
